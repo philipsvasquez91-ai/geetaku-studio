@@ -6,15 +6,16 @@ import urllib.parse
 # Pulling the secure key from Streamlit Cloud's secret vault
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    POLLINATIONS_API_KEY = st.secrets["POLLINATIONS_API_KEY"]
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-2.5-flash')
 except Exception as e:
-    st.error("API Key not found. Please set it in Streamlit Secrets.")
+    st.error("API Keys not found. Please set them in Streamlit Secrets.")
 
-def generate_image_url(prompt):
-    """Generates a free image URL using Pollinations.ai"""
+   def generate_image_url(prompt):
+    """Generates a free image URL using the updated Pollinations API"""
     encoded_prompt = urllib.parse.quote(prompt)
-    return f"https://image.pollinations.ai/prompt/{encoded_prompt}"
+    return f"https://gen.pollinations.ai/image/{encoded_prompt}?key={POLLINATIONS_API_KEY}"
 
 # --- APP UI & LOGIC ---
 st.set_page_config(page_title="GeeTaku-San Studio", layout="centered", page_icon="⛩️")
