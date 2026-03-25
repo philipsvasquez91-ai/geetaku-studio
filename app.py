@@ -3,19 +3,17 @@ import google.generativeai as genai
 import urllib.parse
 
 # --- API CONFIGURATION ---
-# Pulling the secure key from Streamlit Cloud's secret vault
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-    POLLINATIONS_API_KEY = st.secrets["POLLINATIONS_API_KEY"]
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
-    st.error("API Keys not found. Please set them in Streamlit Secrets.")
+    st.error("API Key not found. Please set it in Streamlit Secrets.")
 
-   def generate_image_url(prompt):
-    """Generates a free image URL using the updated Pollinations API"""
+def generate_image_url(prompt):
+    """Generates a free image URL using Pollinations.ai"""
     encoded_prompt = urllib.parse.quote(prompt)
-    return f"https://gen.pollinations.ai/image/{encoded_prompt}?key={POLLINATIONS_API_KEY}"
+    return f"https://image.pollinations.ai/prompt/{encoded_prompt}"
 
 # --- APP UI & LOGIC ---
 st.set_page_config(page_title="GeeTaku-San Studio", layout="centered", page_icon="⛩️")
@@ -62,7 +60,7 @@ if st.button("🚀 Generate Content"):
         # -- MODULE A: SCRIPT GENERATION --
         if want_script:
             st.subheader("📝 Your TikTok Script")
-            prompt = f"""
+            prompt_text = f"""
             You are the head content strategist for 'GeeTaku-San', a fast-paced TikTok channel dedicated to pop culture, anime, and professional wrestling.
             
             Topic: {topic}
@@ -77,7 +75,7 @@ if st.button("🚀 Generate Content"):
             """
             with st.spinner("Drafting script..."):
                 try:
-                    script_response = model.generate_content(prompt)
+                    script_response = model.generate_content(prompt_text)
                     st.write(script_response.text)
                 except Exception as e:
                     st.error(f"Error generating script: {e}")
