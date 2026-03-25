@@ -1,100 +1,92 @@
 import streamlit as st
 import google.generativeai as genai
 import urllib.parse
+import requests
 
-# --- API CONFIGURATION ---
-try:
-    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-flash-latest')
-except Exception as e:
-    st.error("API Key not found. Please set it in Streamlit Secrets.")
-
-def generate_image_url(prompt):
-    """Generates a free image URL using Pollinations.ai"""
-    encoded_prompt = urllib.parse.quote(prompt)
-    return f"https://image.pollinations.ai/prompt/{encoded_prompt}"
-
-# --- APP UI & LOGIC ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(page_title="GeeTaku-San Studio", layout="centered", page_icon="⛩️")
 
-st.title("⛩️ GeeTaku-San Content Studio")
-st.markdown("Your limitless mobile engine for anime, wrestling, and pop culture content.")
-
-st.divider()
-
-# --- 1. INPUT SECTION ---
-st.header("1. Feed the Engine")
-keyword = st.text_input("Enter a trending keyword:", placeholder="e.g., WrestleMania fallout, new Pokémon TCG set, Minecraft lore...")
-uploaded_file = st.file_uploader("Or upload a text file/article for context:", type=['txt'])
-
-st.divider()
-
-# --- 2. OUTPUT CONTROL PANEL ---
-st.header("2. Output Control Panel")
-st.markdown("Select exactly what assets you need for this post:")
-
-col1, col2, col3 = st.columns(3)
-with col1:
-    want_script = st.checkbox("📝 Viral Script", value=True)
-with col2:
-    want_images = st.checkbox("🎨 Image Assets", value=True)
-with col3:
-    want_storyboard = st.checkbox("🎬 Video Storyboard")
-
-st.divider()
-
-# --- 3. GENERATION TRIGGER ---
-if st.button("🚀 Generate Content"):
+# Pull keys from the secure vault
+try:
+    G_KEY = st.secrets["GEMINI_API_KEY"]
+    P_KEY = st.secrets["POLLINATIONS_API_KEY"]
+    genai.configure(api_key=G_KEY)
     
-    topic = keyword
-    if uploaded_file is not None:
-        file_content = uploaded_file.getvalue().decode("utf-8")
-        topic = f"{keyword} (Context from file: {file_content[:500]}...)"
-        
-    if not topic:
-        st.warning("Please enter a keyword or upload a file to get started!")
+    # 2026 Stable Model: Gemini 3.1 Flash
+    model = genai.GenerativeModel('gemini-3.1-flash-preview')
+except Exception as e:
+    st.error("⚠️ API Keys Missing! Please add 'GEMINI_API_KEY' and 'POLLINATIONS_API_KEY' to Streamlit Secrets.")
+
+# --- 2. THE ENGINE FUNCTIONS ---
+def generate_image_url(prompt):
+    """Generates a high-quality image via Pollinations 2026 Engine"""
+    # Clean the prompt for the web
+    clean_prompt = urllib.parse.quote(prompt)
+    # The new 2026 verified endpoint
+    return f"https://gen.pollinations.ai/image/{clean_prompt}?key={P_KEY}&width=1024&height=1024&nologo=true"
+
+# --- 3. THE INTERFACE ---
+st.title("⛩️ GeeTaku-San Content Studio")
+st.markdown("#### The All-in-One Engine for Anime, Wrestling & Pop Culture")
+
+with st.container():
+    topic = st.text_input("What's trending?", placeholder="e.g. Gear 5 Luffy, Cody Rhodes news, MCU rumors...")
+    uploaded_file = st.file_uploader("Optional: Drop an article or notes (.txt)", type=['txt'])
+
+st.sidebar.header("Studio Controls")
+do_script = st.sidebar.checkbox("📝 TikTok Script", value=True)
+do_image = st.sidebar.checkbox("🎨 Green Screen Asset", value=True)
+do_story = st.sidebar.checkbox("🎬 Production Storyboard", value=False)
+
+# --- 4. THE MAGIC BUTTON ---
+if st.button("🚀 Create Content"):
+    if not topic and not uploaded_file:
+        st.warning("Enter a topic first!")
     else:
-        st.success("Processing your request...")
+        # Process input
+        final_topic = topic
+        if uploaded_file:
+            final_topic += " [Context: " + uploaded_file.getvalue().decode("utf-8")[:1000] + "]"
+        
+        st.info(f"Generating assets for: {topic}...")
 
-        # -- MODULE A: SCRIPT GENERATION --
-        if want_script:
-            st.subheader("📝 Your TikTok Script")
-            prompt_text = f"""
-            You are the head content strategist for 'GeeTaku-San', a fast-paced TikTok channel dedicated to pop culture, anime, and professional wrestling.
-            
-            Topic: {topic}
-            
-            Write a highly engaging, 60-second TikTok script for this topic. 
-            You must include:
-            1. Hook: A controversial or highly engaging opening line (0-3 seconds).
-            2. Visual Cues: Instructions on what should be shown on the green screen.
-            3. The Body: Fast-paced delivery of the information.
-            4. Call to Action: Ask a specific question to drive comments.
-            5. SEO: Provide the 5 best hashtags for the TikTok algorithm.
+        # -- MODULE A: VIRAL SCRIPT --
+        if do_script:
+            st.subheader("📝 Viral TikTok Script")
+            prompt = f"""
+            Act as the head strategist for the 'GeeTaku-San' TikTok. 
+            Topic: {final_topic}
+            Write a 60s script with:
+            1. AGGRESSIVE HOOK (0-3s)
+            2. VISUAL CUES for green screen
+            3. HIGH-ENERGY BODY CONTENT (Pop culture/Anime/Wrestling focus)
+            4. COMMENT-BASED CTA
+            5. TOP 5 VIRAL HASHTAGS
             """
-            with st.spinner("Drafting script..."):
+            with st.spinner("Writing script..."):
                 try:
-                    script_response = model.generate_content(prompt_text)
-                    st.write(script_response.text)
+                    response = model.generate_content(prompt)
+                    st.success("Script Ready!")
+                    st.markdown(response.text)
                 except Exception as e:
-                    st.error(f"Error generating script: {e}")
+                    st.error(f"Script Error: {e}")
 
-        # -- MODULE B: LIMITLESS IMAGE GENERATION --
-        if want_images:
-            st.subheader("🎨 Green Screen / B-Roll Assets")
-            img_prompt = f"High quality digital art of {topic}. Vibrant pop culture style, visually striking, highly detailed."
-            with st.spinner("Generating visuals via Pollinations..."):
-                image_url = generate_image_url(img_prompt)
-                st.image(image_url, caption=f"Generated asset for: {keyword}")
+        # -- MODULE B: LIMITLESS IMAGE --
+        if do_image:
+            st.subheader("🎨 Custom Visual Asset")
+            with st.spinner("Painting your background..."):
+                img_prompt = f"Vibrant anime and pro-wrestling aesthetic digital art of {topic}, cinematic lighting, 4k, trending on artstation."
+                url = generate_image_url(img_prompt)
+                # Show the image
+                st.image(url, caption=f"GeeTaku-San Exclusive Asset: {topic}")
+                st.caption(f"[Download link]({url})")
 
-        # -- MODULE C: VIDEO STORYBOARD --
-        if want_storyboard:
-            st.subheader("🎬 Video Production Storyboard")
-            sb_prompt = f"Create a shot-by-shot video storyboard for a highly engaging short-form video about {topic}. Detail the exact camera angles, text-on-screen (pop-ups), and sound effects for each 3-second segment to maximize viewer retention."
-            with st.spinner("Mapping out video shots..."):
+        # -- MODULE C: STORYBOARD --
+        if do_story:
+            st.subheader("🎬 Video Storyboard")
+            with st.spinner("Directing shots..."):
                 try:
-                    sb_response = model.generate_content(sb_prompt)
-                    st.write(sb_response.text)
-                except Exception as e:
-                    st.error(f"Error generating storyboard: {e}")
+                    sb_response = model.generate_content(f"Create a 5-shot visual storyboard for a viral video about {topic}")
+                    st.markdown(sb_response.text)
+                except:
+                    st.error("Storyboard failed. Try again.")
